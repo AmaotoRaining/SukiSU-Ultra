@@ -11,12 +11,10 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.EnhancedEncryption
@@ -56,7 +54,6 @@ import com.sukisu.ultra.ui.theme.CardConfig.cardAlpha
 import com.sukisu.ultra.ui.theme.getCardColors
 import com.sukisu.ultra.ui.theme.getCardElevation
 import com.sukisu.ultra.ui.util.*
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -79,6 +76,7 @@ fun SettingScreen(navigator: DestinationsNavigator) {
     val snackBarHost = LocalSnackbarHost.current
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+    var isSuLogEnabled by remember { mutableStateOf(Natives.isSuLogEnabled()) }
     var selectedEngine by rememberSaveable {
         mutableStateOf(
             prefs.getString("webui_engine", "default") ?: "default"
@@ -150,11 +148,28 @@ fun SettingScreen(navigator: DestinationsNavigator) {
                                 }
                             )
                         }
+                        val enhancedStatus by produceState(initialValue = "") {
+                            value = getFeatureStatus("enhanced_security")
+                        }
+                        val enhancedSummary = when (enhancedStatus) {
+                            "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
+                            "managed" -> stringResource(id = R.string.feature_status_managed_summary)
+                            else -> stringResource(id = R.string.settings_enable_enhanced_security_summary)
+                        }
                         SuperDropdown(
                             icon = Icons.Rounded.EnhancedEncryption,
                             title = stringResource(id = R.string.settings_enable_enhanced_security),
-                            summary = stringResource(id = R.string.settings_enable_enhanced_security_summary),
+                            summary = enhancedSummary,
                             items = modeItems,
+                            leftAction = {
+                                Icon(
+                                    Icons.Rounded.EnhancedEncryption,
+                                    modifier = Modifier.padding(end = 16.dp),
+                                    contentDescription = stringResource(id = R.string.settings_enable_enhanced_security),
+                                    tint = MaterialTheme.colorScheme.onBackground
+                                )
+                            },
+                            enabled = enhancedStatus == "supported",
                             selectedIndex = enhancedSecurityMode,
                             onSelectedIndexChange = { index ->
                                 when (index) {
@@ -193,11 +208,28 @@ fun SettingScreen(navigator: DestinationsNavigator) {
                                 }
                             )
                         }
+                        val suStatus by produceState(initialValue = "") {
+                            value = getFeatureStatus("su_compat")
+                        }
+                        val suSummary = when (suStatus) {
+                            "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
+                            "managed" -> stringResource(id = R.string.feature_status_managed_summary)
+                            else -> stringResource(id = R.string.settings_disable_su_summary)
+                        }
                         SuperDropdown(
                             icon = Icons.Rounded.RemoveModerator,
                             title = stringResource(id = R.string.settings_disable_su),
-                            summary = stringResource(id = R.string.settings_disable_su_summary),
+                            summary = suSummary,
                             items = modeItems,
+                            leftAction = {
+                                Icon(
+                                    Icons.Rounded.RemoveModerator,
+                                    modifier = Modifier.padding(end = 16.dp),
+                                    contentDescription = stringResource(id = R.string.settings_disable_su),
+                                    tint = MaterialTheme.colorScheme.onBackground
+                                )
+                            },
+                            enabled = suStatus == "supported",
                             selectedIndex = suCompatMode,
                             onSelectedIndexChange = { index ->
                                 when (index) {
@@ -236,11 +268,28 @@ fun SettingScreen(navigator: DestinationsNavigator) {
                                 }
                             )
                         }
+                        val umountStatus by produceState(initialValue = "") {
+                            value = getFeatureStatus("kernel_umount")
+                        }
+                        val umountSummary = when (umountStatus) {
+                            "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
+                            "managed" -> stringResource(id = R.string.feature_status_managed_summary)
+                            else -> stringResource(id = R.string.settings_disable_kernel_umount_summary)
+                        }
                         SuperDropdown(
                             icon = Icons.Rounded.RemoveCircle,
                             title = stringResource(id = R.string.settings_disable_kernel_umount),
-                            summary = stringResource(id = R.string.settings_disable_kernel_umount_summary),
+                            summary = umountSummary,
                             items = modeItems,
+                            leftAction = {
+                                Icon(
+                                    Icons.Rounded.RemoveCircle,
+                                    modifier = Modifier.padding(end = 16.dp),
+                                    contentDescription = stringResource(id = R.string.settings_disable_kernel_umount),
+                                    tint = MaterialTheme.colorScheme.onBackground
+                                )
+                            },
+                            enabled = umountStatus == "supported",
                             selectedIndex = kernelUmountMode,
                             onSelectedIndexChange = { index ->
                                 when (index) {
@@ -270,6 +319,68 @@ fun SettingScreen(navigator: DestinationsNavigator) {
                             }
                         )
 
+                        var suLogMode by rememberSaveable {
+                            mutableIntStateOf(
+                                run {
+                                    val currentEnabled = Natives.isSuLogEnabled()
+                                    val savedPersist = prefs.getInt("sulog_mode", 0)
+                                    if (savedPersist == 2) 2 else if (!currentEnabled) 1 else 0
+                                }
+                            )
+                        }
+                        val suLogStatus by produceState(initialValue = "") {
+                            value = getFeatureStatus("sulog")
+                        }
+                        val suLogSummary = when (suLogStatus) {
+                            "unsupported" -> stringResource(id = R.string.feature_status_unsupported_summary)
+                            "managed" -> stringResource(id = R.string.feature_status_managed_summary)
+                            else -> stringResource(id = R.string.settings_disable_sulog_summary)
+                        }
+                        SuperDropdown(
+                            title = stringResource(id = R.string.settings_disable_sulog),
+                            summary = suLogSummary,
+                            items = modeItems,
+                            leftAction = {
+                                Icon(
+                                    Icons.Rounded.RemoveCircle,
+                                    modifier = Modifier.padding(end = 16.dp),
+                                    contentDescription = stringResource(id = R.string.settings_disable_sulog),
+                                    tint = MaterialTheme.colorScheme.onBackground
+                                )
+                            },
+                            enabled = suLogStatus == "supported",
+                            selectedIndex = suLogMode,
+                            onSelectedIndexChange = { index ->
+                                when (index) {
+                                    // Default: enable and save to persist
+                                    0 -> if (Natives.setSuLogEnabled(true)) {
+                                        execKsud("feature save", true)
+                                        prefs.edit { putInt("sulog_mode", 0) }
+                                        suLogMode = 0
+                                        isSuLogEnabled = true
+                                    }
+
+                                    // Temporarily disable: save enabled state first, then disable
+                                    1 -> if (Natives.setSuLogEnabled(true)) {
+                                        execKsud("feature save", true)
+                                        if (Natives.setSuLogEnabled(false)) {
+                                            prefs.edit { putInt("sulog_mode", 0) }
+                                            suLogMode = 1
+                                            isSuLogEnabled = false
+                                        }
+                                    }
+
+                                    // Permanently disable: disable and save
+                                    2 -> if (Natives.setSuLogEnabled(false)) {
+                                        execKsud("feature save", true)
+                                        prefs.edit { putInt("sulog_mode", 2) }
+                                        suLogMode = 2
+                                        isSuLogEnabled = false
+                                    }
+                                }
+                            }
+                        )
+
                         // 卸载模块开关
                         var umountChecked by rememberSaveable { mutableStateOf(Natives.isDefaultUmountModules()) }
                         SwitchItem(
@@ -283,26 +394,6 @@ fun SettingScreen(navigator: DestinationsNavigator) {
                                 }
                             }
                         )
-
-
-                        // 强制签名验证开关
-                        var forceSignatureVerification by rememberSaveable {
-                            mutableStateOf(prefs.getBoolean("force_signature_verification", false))
-                        }
-                        SwitchItem(
-                            icon = Icons.Filled.Security,
-                            title = stringResource(R.string.module_signature_verification),
-                            summary = stringResource(R.string.module_signature_verification_summary),
-                            checked = forceSignatureVerification,
-                            onCheckedChange = { enabled ->
-                                prefs.edit { putBoolean("force_signature_verification", enabled) }
-                                forceSignatureVerification = enabled
-                            }
-                        )
-                        // UID 扫描开关
-                        if (Natives.version >= Natives.MINIMAL_SUPPORTED_UID_SCANNER && Natives.version >= Natives.MINIMAL_NEW_IOCTL_KERNEL) {
-                            UidScannerSection(prefs, snackBarHost, scope, context)
-                        }
                     }
                 )
             }
@@ -403,27 +494,26 @@ fun SettingScreen(navigator: DestinationsNavigator) {
 
                     // 查看使用日志
                     KsuIsValid {
-                        SettingItem(
-                            icon = Icons.Filled.Visibility,
-                            title = stringResource(R.string.log_viewer_view_logs),
-                            summary = stringResource(R.string.log_viewer_view_logs_summary),
-                            onClick = {
-                                navigator.navigate(LogViewerScreenDestination)
-                            }
-                        )
-                    }
-                    val lkmMode = Natives.isLkmMode
-                    KsuIsValid {
-                        if (lkmMode) {
+                        if (isSuLogEnabled) {
                             SettingItem(
-                                icon = Icons.Filled.FolderOff,
-                                title = stringResource(R.string.umount_path_manager),
-                                summary = stringResource(R.string.umount_path_manager_summary),
+                                icon = Icons.Filled.Visibility,
+                                title = stringResource(R.string.log_viewer_view_logs),
+                                summary = stringResource(R.string.log_viewer_view_logs_summary),
                                 onClick = {
-                                    navigator.navigate(UmountManagerScreenDestination)
+                                    navigator.navigate(LogViewerScreenDestination)
                                 }
                             )
                         }
+                    }
+                    KsuIsValid {
+                        SettingItem(
+                            icon = Icons.Filled.FolderOff,
+                            title = stringResource(R.string.umount_path_manager),
+                            summary = stringResource(R.string.umount_path_manager_summary),
+                            onClick = {
+                                navigator.navigate(UmountManagerScreenDestination)
+                            }
+                        )
                     }
 
                     if (showBottomsheet) {
@@ -467,7 +557,7 @@ fun SettingScreen(navigator: DestinationsNavigator) {
                             }
                         )
                     }
-                    if (lkmMode) {
+                    if (Natives.isLkmMode) {
                         UninstallItem(navigator) {
                             loadingDialog.withLoading(it)
                         }
@@ -955,125 +1045,4 @@ private fun TopBar(
         windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
         scrollBehavior = scrollBehavior
     )
-}
-
-@Composable
-private fun UidScannerSection(
-    prefs: SharedPreferences,
-    snackBarHost: SnackbarHostState,
-    scope: CoroutineScope,
-    context: Context
-) {
-    if (Natives.version < Natives.MINIMAL_SUPPORTED_UID_SCANNER) return
-
-    val realAuto = Natives.isUidScannerEnabled()
-    val realMulti = getUidMultiUserScan()
-
-    var autoOn by remember { mutableStateOf(realAuto) }
-    var multiOn by remember { mutableStateOf(realMulti) }
-
-    LaunchedEffect(Unit) {
-        autoOn = realAuto
-        multiOn = realMulti
-        prefs.edit {
-            putBoolean("uid_auto_scan", autoOn)
-            putBoolean("uid_multi_user_scan", multiOn)
-        }
-    }
-
-    SwitchItem(
-        icon = Icons.Filled.Scanner,
-        title = stringResource(R.string.uid_auto_scan_title),
-        summary = stringResource(R.string.uid_auto_scan_summary),
-        checked = autoOn,
-        onCheckedChange = { target ->
-            autoOn = target
-            if (!target) multiOn = false
-
-            scope.launch(Dispatchers.IO) {
-                setUidAutoScan(target)
-                val actual = Natives.isUidScannerEnabled() || readUidScannerFile()
-                withContext(Dispatchers.Main) {
-                    autoOn = actual
-                    if (!actual) multiOn = false
-                    prefs.edit {
-                        putBoolean("uid_auto_scan", actual)
-                        putBoolean("uid_multi_user_scan", multiOn)
-                    }
-                    if (actual != target) {
-                        snackBarHost.showSnackbar(
-                            context.getString(R.string.uid_scanner_setting_failed)
-                        )
-                    }
-                }
-            }
-        }
-    )
-
-    AnimatedVisibility(
-        visible = autoOn,
-        enter = fadeIn() + expandVertically(),
-        exit = fadeOut() + shrinkVertically()
-    ) {
-        SwitchItem(
-            icon = Icons.Filled.Groups,
-            title = stringResource(R.string.uid_multi_user_scan_title),
-            summary = stringResource(R.string.uid_multi_user_scan_summary),
-            checked = multiOn,
-            onCheckedChange = { target ->
-                scope.launch(Dispatchers.IO) {
-                    val ok = setUidMultiUserScan(target)
-                    withContext(Dispatchers.Main) {
-                        if (ok) {
-                            multiOn = target
-                            prefs.edit { putBoolean("uid_multi_user_scan", target) }
-                        } else {
-                            snackBarHost.showSnackbar(
-                                context.getString(R.string.uid_scanner_setting_failed)
-                            )
-                        }
-                    }
-                }
-            }
-        )
-    }
-
-    AnimatedVisibility(
-        visible = autoOn,
-        enter = fadeIn() + expandVertically(),
-        exit = fadeOut() + shrinkVertically()
-    ) {
-        val confirmDialog = rememberConfirmDialog()
-        SettingItem(
-            icon = Icons.Filled.CleaningServices,
-            title = stringResource(R.string.clean_runtime_environment),
-            summary = stringResource(R.string.clean_runtime_environment_summary),
-            onClick = {
-                scope.launch {
-                    if (confirmDialog.awaitConfirm(
-                            title = context.getString(R.string.clean_runtime_environment),
-                            content = context.getString(R.string.clean_runtime_environment_confirm)
-                        ) == ConfirmResult.Confirmed
-                    ) {
-                        if (cleanRuntimeEnvironment()) {
-                            autoOn = false
-                            multiOn = false
-                            prefs.edit {
-                                putBoolean("uid_auto_scan", false)
-                                putBoolean("uid_multi_user_scan", false)
-                            }
-                            Natives.setUidScannerEnabled(false)
-                            snackBarHost.showSnackbar(
-                                context.getString(R.string.clean_runtime_environment_success)
-                            )
-                        } else {
-                            snackBarHost.showSnackbar(
-                                context.getString(R.string.clean_runtime_environment_failed)
-                            )
-                        }
-                    }
-                }
-            }
-        )
-    }
 }

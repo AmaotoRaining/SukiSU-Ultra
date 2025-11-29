@@ -1,5 +1,6 @@
 package com.sukisu.ultra.ui.screen
 
+import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -37,9 +38,7 @@ private val SPACING_LARGE = 16.dp
 
 data class UmountPathEntry(
     val path: String,
-    val checkMnt: Boolean,
     val flags: Int,
-    val isDefault: Boolean
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -243,11 +242,11 @@ fun UmountManagerScreen(navigator: DestinationsNavigator) {
         if (showAddDialog) {
             AddUmountPathDialog(
                 onDismiss = { showAddDialog = false },
-                onConfirm = { path, checkMnt, flags ->
+                onConfirm = { path, flags ->
                     showAddDialog = false
 
                     scope.launch(Dispatchers.IO) {
-                        val success = addUmountPath(path, checkMnt, flags)
+                        val success = addUmountPath(path, flags)
                         withContext(Dispatchers.Main) {
                             if (success) {
                                 saveUmountConfig()
@@ -291,10 +290,7 @@ fun UmountPathCard(
             Icon(
                 imageVector = Icons.Filled.Folder,
                 contentDescription = null,
-                tint = if (entry.isDefault)
-                    MaterialTheme.colorScheme.primary
-                else
-                    MaterialTheme.colorScheme.secondary,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
             )
 
@@ -308,42 +304,31 @@ fun UmountPathCard(
                 Spacer(modifier = Modifier.height(SPACING_SMALL))
                 Text(
                     text = buildString {
-                        append(context.getString(R.string.check_mount_type))
-                        append(": ")
-                        append(if (entry.checkMnt) context.getString(R.string.yes) else context.getString(R.string.no))
-                        append(" | ")
                         append(context.getString(R.string.flags))
                         append(": ")
                         append(entry.flags.toUmountFlagName(context))
-                        if (entry.isDefault) {
-                            append(" | ")
-                            append(context.getString(R.string.default_entry))
-                        }
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-
-            if (!entry.isDefault) {
-                IconButton(
-                    onClick = {
-                        scope.launch {
-                            if (confirmDialog.awaitConfirm(
-                                    title = context.getString(R.string.confirm_delete),
-                                    content = context.getString(R.string.confirm_delete_umount_path, entry.path)
-                                ) == ConfirmResult.Confirmed) {
-                                onDelete()
-                            }
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        if (confirmDialog.awaitConfirm(
+                                title = context.getString(R.string.confirm_delete),
+                                content = context.getString(R.string.confirm_delete_umount_path, entry.path)
+                            ) == ConfirmResult.Confirmed) {
+                            onDelete()
                         }
                     }
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error
-                    )
                 }
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
     }
@@ -352,10 +337,9 @@ fun UmountPathCard(
 @Composable
 fun AddUmountPathDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String, Boolean, Int) -> Unit
+    onConfirm: (String, Int) -> Unit
 ) {
     var path by rememberSaveable { mutableStateOf("") }
-    var checkMnt by rememberSaveable { mutableStateOf(false) }
     var flags by rememberSaveable { mutableStateOf("-1") }
 
     AlertDialog(
@@ -370,20 +354,6 @@ fun AddUmountPathDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
-
-                Spacer(modifier = Modifier.height(SPACING_MEDIUM))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = checkMnt,
-                        onCheckedChange = { checkMnt = it }
-                    )
-                    Spacer(modifier = Modifier.width(SPACING_SMALL))
-                    Text(stringResource(R.string.check_mount_type_overlay))
-                }
 
                 Spacer(modifier = Modifier.height(SPACING_MEDIUM))
 
@@ -402,7 +372,7 @@ fun AddUmountPathDialog(
             TextButton(
                 onClick = {
                     val flagsInt = flags.toIntOrNull() ?: -1
-                    onConfirm(path, checkMnt, flagsInt)
+                    onConfirm(path, flagsInt)
                 },
                 enabled = path.isNotBlank()
             ) {
@@ -423,18 +393,16 @@ private fun parseUmountPaths(output: String): List<UmountPathEntry> {
 
     return lines.drop(2).mapNotNull { line ->
         val parts = line.trim().split(Regex("\\s+"))
-        if (parts.size >= 4) {
+        if (parts.size >= 2) {
             UmountPathEntry(
                 path = parts[0],
-                checkMnt = parts[1].equals("true", ignoreCase = true),
-                flags = parts[2].toIntOrNull() ?: -1,
-                isDefault = parts[3].equals("Yes", ignoreCase = true)
+                flags = parts[1].toIntOrNull() ?: -1
             )
         } else null
     }
 }
 
-private fun Int.toUmountFlagName(context: android.content.Context): String {
+private fun Int.toUmountFlagName(context: Context): String {
     return when (this) {
         -1 -> context.getString(R.string.mnt_detach)
         else -> this.toString()

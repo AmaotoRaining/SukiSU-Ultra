@@ -112,7 +112,6 @@
 \n続行しますか？</string>
     <string name="install_next">次へ</string>
     <string name="select_file_tip">%1$s のパーティションイメージを推奨します。</string>
-    <string name="select_file_tip_vendor">(不安定)</string>
     <string name="select_kmi">KMI を選択してください</string>
     <string name="settings_uninstall">アンインストール</string>
     <string name="settings_uninstall_temporary">一時的にアンインストールする</string>
@@ -127,7 +126,6 @@
     <string name="selected_lkm">選択された LKM: %s</string>
     <string name="save_log">ログを保存</string>
     <string name="log_saved">保存されたログ</string>
-    <string name="sus_su_mode">SuS SU モード:</string>
     <!-- Module related -->
     <string name="module_install_confirm">%1$s モジュールをインストールしますか？</string>
     <string name="unknown_module">不明なモジュール</string>
@@ -281,8 +279,6 @@
     <string name="advanced_settings">高度な設定</string>
     <string name="appearance_settings">ツールバーをカスタマイズ</string>
     <string name="back">戻る</string>
-    <string name="susfs_enabled">SuSFS 有効</string>
-    <string name="susfs_disabled">SuSFS 無効</string>
     <string name="background_set_success">背景の設定が成功しました</string>
     <string name="background_removed">カスタム背景を削除しました</string>
     <string name="icon_switch_title">代替アイコン</string>
@@ -384,39 +380,20 @@
     <!-- SuSFS Tab Titles -->
     <string name="susfs_tab_basic_settings">基本設定</string>
     <string name="susfs_tab_sus_paths">SUS のパス</string>
-    <string name="susfs_tab_sus_mounts">SUS マウント</string>
-    <string name="susfs_tab_try_umount">アンマウントを試す</string>
     <string name="susfs_tab_path_settings">パスの設定</string>
     <string name="susfs_tab_enabled_features">有効な機能のステータス</string>
     <!-- SuSFS Path Management -->
     <string name="susfs_add_sus_path">SUS パスを追加</string>
-    <string name="susfs_add_sus_mount">SUS マウントを追加</string>
-    <string name="susfs_add_try_umount">アンマウントを試すを追加</string>
     <string name="susfs_sus_path_added_success">SUS パスが正常に追加されました</string>
     <string name="susfs_path_not_found_error">パスが見つかりません</string>
     <string name="susfs_path_label">パス</string>
-    <string name="susfs_mount_path_label">マウントのパス</string>
     <string name="susfs_path_placeholder">例: /system/addon.d</string>
     <string name="susfs_no_paths_configured">SUS パスが未構成です</string>
-    <string name="susfs_no_mounts_configured">SUS マウントが未構成です</string>
-    <string name="susfs_no_umounts_configured">アンマウントを試すが未構成です</string>
     <!-- SuSFS Umount Mode -->
-    <string name="susfs_umount_mode_label">アンマウントモード</string>
-    <string name="susfs_umount_mode_normal">通常のアンマウント (0)</string>
-    <string name="susfs_umount_mode_detach">アンマウントを分離 (1)</string>
-    <string name="susfs_umount_mode_normal_short">通常</string>
-    <string name="susfs_umount_mode_detach_short">分離</string>
-    <string name="susfs_umount_mode_display">モード: %1$s (%2$s)</string>
-    <string name="susfs_try_umount_added_success">追加されたパスのアンマウントに成功しました: %s</string>
-    <string name="susfs_try_umount_added_saved">アンマウントのパスの保存に成功しました: %s</string>
     <!-- SuSFS Run Umount -->
     <!-- SuSFS Reset Categories -->
     <string name="susfs_reset_paths_title">SUS パスをリセット</string>
     <string name="susfs_reset_paths_message">すべての SUS パスの構成が消去されます。続行してもよろしいですか？</string>
-    <string name="susfs_reset_mounts_title">SUS マウントをリセット</string>
-    <string name="susfs_reset_mounts_message">すべての SUS マウントの構成が消去されます。続行してもよろしいですか？</string>
-    <string name="susfs_reset_umounts_title">リセットしてアンマウントを試す</string>
-    <string name="susfs_reset_umounts_message">すべてのアンマウント構成がリセットされます。続行してもよろしいですか？</string>
     <string name="susfs_reset_path_title">パスの設定をリセット</string>
     <!-- SuSFS Path Settings -->
     <string name="susfs_android_data_path_label">Android データパス</string>
@@ -430,18 +407,12 @@
     <string name="susfs_feature_disabled">無効</string>
     <!-- Feature Labels -->
     <string name="sus_path_feature_label">SUS パスの対応</string>
-    <string name="sus_mount_feature_label">SUS マウントの対応</string>
-    <string name="try_umount_feature_label">アンマウントを試すの対応</string>
     <string name="spoof_uname_feature_label">uname 偽装の対応</string>
     <string name="spoof_cmdline_feature_label">Cmdline/Bootconfig を偽装</string>
     <string name="open_redirect_feature_label">オープンリダイレクトの対応</string>
     <string name="enable_log_feature_label">ログの対応</string>
-    <string name="auto_default_mount_feature_label">自動でデフォルトのマウント</string>
-    <string name="auto_bind_mount_feature_label">自動でバインドマウント</string>
-    <string name="auto_try_umount_bind_feature_label">自動でバインドマウントのアンマウントを試す</string>
     <string name="hide_symbols_feature_label">KSU SUSFS シンボルを非表示</string>
     <string name="sus_kstat_feature_label">SUS Kstat の対応</string>
-    <string name="sus_su_feature_label">SUS SU モード切り替え機能</string>
     <!-- 可切换状态 -->
     <string name="susfs_feature_configurable">構成可能な SuSFS の機能</string>
     <string name="susfs_enable_log_label">SuSFS のログ取得を有効化</string>
@@ -537,8 +508,6 @@
     <string name="cleanup_residue">残骸をクリーンアップ</string>
     <string name="cleanup_residue_description">様々なモジュールや残骸となったツールのファイルとディレクトリをクリーンアップします (誤って削除すると損失や起動の失敗に繋がる可能性があるため、注意して使用してください)</string>
     <string name="susfs_edit_sus_path">SUS のパスを編集</string>
-    <string name="susfs_edit_sus_mount">SUS マウントを編集</string>
-    <string name="susfs_edit_try_umount">アンマウントを試すを編集</string>
     <string name="edit_kstat_statically_title">Kstat 静的構成を編集</string>
     <string name="edit_kstat_path_title">Kstat のパスを編集</string>
     <string name="susfs_save">保存</string>
@@ -597,7 +566,6 @@
     <string name="loop_paths_section">ループパス</string>
     <string name="add_loop_path">ループパスを追加</string>
     <!-- 循环路径功能描述 -->
-    <string name="sus_loop_path_feature_label">SUS ループパス</string>
     <string name="sus_loop_paths_description_title">ループパスの構成</string>
     <string name="sus_loop_paths_description_text">ループパスは、非 root ユーザーアプリまたは独立したサービスの起動ごとに SUS_PATH として再設定されます。これにより、追加されたパスの inode ステータスがリセットされたり、カーネル内で inode が再生成される問題に対処できます。</string>
     <string name="avc_log_spoofing">AVC ログの偽装</string>

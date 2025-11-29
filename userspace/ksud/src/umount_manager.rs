@@ -8,12 +8,12 @@ use crate::ksucalls::ksuctl;
 const MAGIC_NUMBER_HEADER: &[u8; 4] = b"KUMT";
 const MAGIC_VERSION: u32 = 1;
 const CONFIG_FILE: &str = "/data/adb/ksu/.umount";
+#[allow(clippy::unreadable_literal)]
 const KSU_IOCTL_UMOUNT_MANAGER: u32 = 0xc0004b6b; // _IOC(_IOC_READ|_IOC_WRITE, 'K', 107, 0)
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct UmountEntry {
     pub path: String,
-    pub check_mnt: bool,
     pub flags: i32,
     pub is_default: bool,
 }
@@ -26,7 +26,6 @@ pub struct UmountConfig {
 pub struct UmountManager {
     config: UmountConfig,
     config_path: PathBuf,
-    defaults: Vec<UmountEntry>,
 }
 
 #[repr(C)]
@@ -34,7 +33,6 @@ pub struct UmountManager {
 struct UmountManagerCmd {
     pub operation: u32,
     pub path: [u8; 256],
-    pub check_mnt: u8,
     pub flags: i32,
     pub count: u32,
     pub entries_ptr: u64,
@@ -42,10 +40,9 @@ struct UmountManagerCmd {
 
 impl Default for UmountManagerCmd {
     fn default() -> Self {
-        UmountManagerCmd {
+        Self {
             operation: 0,
             path: [0; 256],
-            check_mnt: 0,
             flags: 0,
             count: 0,
             entries_ptr: 0,
@@ -65,10 +62,9 @@ impl UmountManager {
             }
         };
 
-        Ok(UmountManager {
+        Ok(Self {
             config,
             config_path: path,
-            defaults: Vec::new(),
         })
     }
 
@@ -86,7 +82,7 @@ impl UmountManager {
 
         let version = u32::from_le_bytes([data[4], data[5], data[6], data[7]]);
         if version != MAGIC_VERSION {
-            return Err(anyhow!("Unsupported config version: {}", version));
+            return Err(anyhow!("Unsupported config version: {version}"));
         }
 
         let json_data = &data[8..];
@@ -112,23 +108,16 @@ impl UmountManager {
         Ok(())
     }
 
-    pub fn add_entry(&mut self, path: &str, check_mnt: bool, flags: i32) -> Result<()> {
-        let exists = self
-            .defaults
-            .iter()
-            .chain(&self.config.entries)
-            .any(|e| e.path == path);
+    pub fn add_entry(&mut self, path: &str, flags: i32) -> Result<()> {
+        let exists = self.config.entries.iter().any(|e| e.path == path);
         if exists {
-            return Err(anyhow!("Entry already exists: {}", path));
+            return Err(anyhow!("Entry already exists: {path}"));
         }
-
-        let is_default = Self::get_default_paths().iter().any(|e| e.path == path);
 
         let entry = UmountEntry {
             path: path.to_string(),
-            check_mnt,
             flags,
-            is_default,
+            is_default: false,
         };
 
         self.config.entries.push(entry);
@@ -136,87 +125,24 @@ impl UmountManager {
     }
 
     pub fn remove_entry(&mut self, path: &str) -> Result<()> {
-        let entry = self.config.entries.iter().find(|e| e.path == path);
-
-        if let Some(entry) = entry {
-            if entry.is_default {
-                return Err(anyhow!("Cannot remove default entry: {}", path));
-            }
-        } else {
-            return Err(anyhow!("Entry not found: {}", path));
-        }
-
+        let before = self.config.entries.len();
         self.config.entries.retain(|e| e.path != path);
+
+        if before == self.config.entries.len() {
+            return Err(anyhow!("Entry not found: {path}"));
+        }
         Ok(())
     }
 
     pub fn list_entries(&self) -> Vec<UmountEntry> {
-        let mut all = self.defaults.clone();
-        all.extend(self.config.entries.iter().cloned());
-        all
+        self.config.entries.clone()
     }
 
-    pub fn clear_custom_entries(&mut self) -> Result<()> {
+    pub fn clear_custom_entries(&mut self) {
         self.config.entries.retain(|e| e.is_default);
-        Ok(())
-    }
-
-    pub fn get_default_paths() -> Vec<UmountEntry> {
-        vec![
-            UmountEntry {
-                path: "/odm".to_string(),
-                check_mnt: true,
-                flags: 0,
-                is_default: true,
-            },
-            UmountEntry {
-                path: "/system".to_string(),
-                check_mnt: true,
-                flags: 0,
-                is_default: true,
-            },
-            UmountEntry {
-                path: "/vendor".to_string(),
-                check_mnt: true,
-                flags: 0,
-                is_default: true,
-            },
-            UmountEntry {
-                path: "/product".to_string(),
-                check_mnt: true,
-                flags: 0,
-                is_default: true,
-            },
-            UmountEntry {
-                path: "/system_ext".to_string(),
-                check_mnt: true,
-                flags: 0,
-                is_default: true,
-            },
-            UmountEntry {
-                path: "/data/adb/modules".to_string(),
-                check_mnt: false,
-                flags: -1, // MNT_DETACH
-                is_default: true,
-            },
-            UmountEntry {
-                path: "/debug_ramdisk".to_string(),
-                check_mnt: false,
-                flags: -1, // MNT_DETACH
-                is_default: true,
-            },
-        ]
-    }
-
-    pub fn init_defaults(&mut self) -> Result<()> {
-        self.defaults = Self::get_default_paths();
-        Ok(())
     }
 
     pub fn apply_to_kernel(&self) -> Result<()> {
-        for entry in &self.defaults {
-            let _ = Self::kernel_add_entry(entry);
-        }
         for entry in &self.config.entries {
             Self::kernel_add_entry(entry)?;
         }
@@ -226,7 +152,6 @@ impl UmountManager {
     fn kernel_add_entry(entry: &UmountEntry) -> Result<()> {
         let mut cmd = UmountManagerCmd {
             operation: 0,
-            check_mnt: entry.check_mnt as u8,
             flags: entry.flags,
             ..Default::default()
         };
@@ -245,8 +170,7 @@ impl UmountManager {
 }
 
 pub fn init_umount_manager() -> Result<UmountManager> {
-    let mut manager = UmountManager::new(None)?;
-    manager.init_defaults()?;
+    let manager = UmountManager::new(None)?;
 
     if !Path::new(CONFIG_FILE).exists() {
         manager.save_config()?;
@@ -255,11 +179,11 @@ pub fn init_umount_manager() -> Result<UmountManager> {
     Ok(manager)
 }
 
-pub fn add_umount_path(path: &str, check_mnt: bool, flags: i32) -> Result<()> {
+pub fn add_umount_path(path: &str, flags: i32) -> Result<()> {
     let mut manager = init_umount_manager()?;
-    manager.add_entry(path, check_mnt, flags)?;
+    manager.add_entry(path, flags)?;
     manager.save_config()?;
-    println!("✓ Added umount path: {}", path);
+    println!("✓ Added umount path: {path}");
     Ok(())
 }
 
@@ -267,7 +191,7 @@ pub fn remove_umount_path(path: &str) -> Result<()> {
     let mut manager = init_umount_manager()?;
     manager.remove_entry(path)?;
     manager.save_config()?;
-    println!("✓ Removed umount path: {}", path);
+    println!("✓ Removed umount path: {path}");
     Ok(())
 }
 
@@ -280,17 +204,13 @@ pub fn list_umount_paths() -> Result<()> {
         return Ok(());
     }
 
-    println!(
-        "{:<30} {:<12} {:<8} {:<10}",
-        "Path", "CheckMnt", "Flags", "Default"
-    );
+    println!("{:<30} {:<8} {:<10}", "Path", "Flags", "Default");
     println!("{}", "=".repeat(60));
 
     for entry in entries {
         println!(
-            "{:<30} {:<12} {:<8} {:<10}",
+            "{:<30} {:<8} {:<10}",
             entry.path,
-            entry.check_mnt,
             entry.flags,
             if entry.is_default { "Yes" } else { "No" }
         );
@@ -302,7 +222,7 @@ pub fn list_umount_paths() -> Result<()> {
 #[cfg(any(target_os = "linux", target_os = "android"))]
 fn umount_manager_ioctl(cmd: &UmountManagerCmd) -> std::io::Result<()> {
     let mut ioctl_cmd = *cmd;
-    ksuctl(KSU_IOCTL_UMOUNT_MANAGER, &mut ioctl_cmd as *mut _)?;
+    ksuctl(KSU_IOCTL_UMOUNT_MANAGER, &raw mut ioctl_cmd)?;
     Ok(())
 }
 
@@ -313,7 +233,7 @@ pub fn umount_manager_ioctl(_cmd: &UmountManagerCmd) -> std::io::Result<()> {
 
 pub fn clear_custom_paths() -> Result<()> {
     let mut manager = init_umount_manager()?;
-    manager.clear_custom_entries()?;
+    manager.clear_custom_entries();
     manager.save_config()?;
     println!("✓ Cleared all custom paths");
     Ok(())
@@ -322,7 +242,7 @@ pub fn clear_custom_paths() -> Result<()> {
 pub fn save_umount_config() -> Result<()> {
     let manager = init_umount_manager()?;
     manager.save_config()?;
-    println!("✓ Configuration saved to: {}", CONFIG_FILE);
+    println!("✓ Configuration saved to: {CONFIG_FILE}");
     Ok(())
 }
 

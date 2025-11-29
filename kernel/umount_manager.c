@@ -12,12 +12,12 @@
 
 static struct umount_manager g_umount_mgr = {
     .entry_count = 0,
-    .max_entries = 64,
+    .max_entries = 512,
 };
 
 static void try_umount_path(struct umount_entry *entry)
 {
-    try_umount(entry->path, entry->check_mnt, entry->flags);
+    try_umount(entry->path, entry->flags);
 }
 
 static struct umount_entry *find_entry_locked(const char *path)
@@ -33,37 +33,123 @@ static struct umount_entry *find_entry_locked(const char *path)
     return NULL;
 }
 
-static int init_default_entries(void)
+static bool is_path_in_mount_list(const char *path)
 {
-    int ret;
+    struct mount_entry *entry;
+    bool found = false;
 
-    const struct {
-        const char *path;
-        bool check_mnt;
-        int flags;
-    } defaults[] = {
-        { "/odm", true, 0 },
-        { "/system", true, 0 },
-        { "/vendor", true, 0 },
-        { "/product", true, 0 },
-        { "/system_ext", true, 0 },
-        { "/data/adb/modules", false, MNT_DETACH },
-        { "/debug_ramdisk", false, MNT_DETACH },
-    };
-
-    for (int i = 0; i < ARRAY_SIZE(defaults); i++) {
-        ret = ksu_umount_manager_add(defaults[i].path, 
-                                     defaults[i].check_mnt,
-                                     defaults[i].flags,
-                                     true); // is_default = true
-        if (ret) {
-            pr_err("Failed to add default entry: %s, ret=%d\n",
-                   defaults[i].path, ret);
-            return ret;
+    down_read(&mount_list_lock);
+    list_for_each_entry(entry, &mount_list, list) {
+        if (entry->umountable && strcmp(entry->umountable, path) == 0) {
+            found = true;
+            break;
         }
     }
+    up_read(&mount_list_lock);
 
-    pr_info("Initialized %zu default umount entries\n", ARRAY_SIZE(defaults));
+    return found;
+}
+
+static int copy_mount_entry_to_user(struct ksu_umount_entry_info __user *entries,
+                                    u32 idx, const char *path, int flags)
+{
+    struct ksu_umount_entry_info info;
+
+    memset(&info, 0, sizeof(info));
+    strncpy(info.path, path, sizeof(info.path) - 1);
+    info.path[sizeof(info.path) - 1] = '\0';
+    info.flags = flags;
+    info.is_default = 1;
+    info.state = UMOUNT_STATE_IDLE;
+    info.ref_count = 0;
+
+    if (copy_to_user(&entries[idx], &info, sizeof(info))) {
+        return -EFAULT;
+    }
+
+    return 0;
+}
+
+static int copy_umount_entry_to_user(struct ksu_umount_entry_info __user *entries,
+                                      u32 idx, struct umount_entry *entry)
+{
+    struct ksu_umount_entry_info info;
+
+    memset(&info, 0, sizeof(info));
+    strncpy(info.path, entry->path, sizeof(info.path) - 1);
+    info.path[sizeof(info.path) - 1] = '\0';
+    info.flags = entry->flags;
+    info.is_default = entry->is_default;
+    info.state = entry->state;
+    info.ref_count = entry->ref_count;
+
+    if (copy_to_user(&entries[idx], &info, sizeof(info))) {
+        return -EFAULT;
+    }
+
+    return 0;
+}
+
+static int collect_mount_list_entries(struct ksu_umount_entry_info __user *entries,
+                                       u32 max_count, u32 *out_idx)
+{
+    struct mount_entry *mount_entry;
+    u32 idx = 0;
+
+    down_read(&mount_list_lock);
+    list_for_each_entry(mount_entry, &mount_list, list) {
+        if (idx >= max_count) {
+            break;
+        }
+
+        if (!mount_entry->umountable) {
+            continue;
+        }
+
+        if (copy_mount_entry_to_user(entries, idx, mount_entry->umountable,
+                                      mount_entry->flags)) {
+            up_read(&mount_list_lock);
+            return -EFAULT;
+        }
+
+        idx++;
+    }
+    up_read(&mount_list_lock);
+
+    *out_idx = idx;
+    return 0;
+}
+
+static int collect_umount_manager_entries(struct ksu_umount_entry_info __user *entries,
+                                          u32 start_idx, u32 max_count, u32 *out_idx)
+{
+    struct umount_entry *entry;
+    unsigned long flags;
+    u32 idx = start_idx;
+
+    spin_lock_irqsave(&g_umount_mgr.lock, flags);
+
+    list_for_each_entry(entry, &g_umount_mgr.entry_list, list) {
+        if (idx >= max_count) {
+            break;
+        }
+
+        if (is_path_in_mount_list(entry->path)) {
+            continue;
+        }
+
+        spin_unlock_irqrestore(&g_umount_mgr.lock, flags);
+
+        if (copy_umount_entry_to_user(entries, idx, entry)) {
+            return -EFAULT;
+        }
+
+        idx++;
+        spin_lock_irqsave(&g_umount_mgr.lock, flags);
+    }
+
+    spin_unlock_irqrestore(&g_umount_mgr.lock, flags);
+    *out_idx = idx;
     return 0;
 }
 
@@ -72,7 +158,7 @@ int ksu_umount_manager_init(void)
     INIT_LIST_HEAD(&g_umount_mgr.entry_list);
     spin_lock_init(&g_umount_mgr.lock);
 
-    return init_default_entries();
+    return 0;
 }
 
 void ksu_umount_manager_exit(void)
@@ -93,7 +179,7 @@ void ksu_umount_manager_exit(void)
     pr_info("Umount manager cleaned up\n");
 }
 
-int ksu_umount_manager_add(const char *path, bool check_mnt, int flags, bool is_default)
+int ksu_umount_manager_add(const char *path, int flags, bool is_default)
 {
     struct umount_entry *entry;
     unsigned long irqflags;
@@ -104,6 +190,11 @@ int ksu_umount_manager_add(const char *path, bool check_mnt, int flags, bool is_
 
     if (!path || strlen(path) == 0 || strlen(path) >= 256) {
         return -EINVAL;
+    }
+
+    if (is_path_in_mount_list(path)) {
+        pr_warn("Umount manager: path already exists in mount_list: %s\n", path);
+        return -EEXIST;
     }
 
     spin_lock_irqsave(&g_umount_mgr.lock, irqflags);
@@ -127,7 +218,6 @@ int ksu_umount_manager_add(const char *path, bool check_mnt, int flags, bool is_
     }
 
     strncpy(entry->path, path, sizeof(entry->path) - 1);
-    entry->check_mnt = check_mnt;
     entry->flags = flags;
     entry->state = UMOUNT_STATE_IDLE;
     entry->is_default = is_default;
@@ -219,38 +309,23 @@ void ksu_umount_manager_execute_all(const struct cred *cred)
 
 int ksu_umount_manager_get_entries(struct ksu_umount_entry_info __user *entries, u32 *count)
 {
-    struct umount_entry *entry;
-    struct ksu_umount_entry_info info;
-    unsigned long flags;
-    u32 idx = 0;
     u32 max_count = *count;
+    u32 idx;
+    int ret;
 
-    spin_lock_irqsave(&g_umount_mgr.lock, flags);
+    ret = collect_mount_list_entries(entries, max_count, &idx);
+    if (ret) {
+        return ret;
+    }
 
-    list_for_each_entry(entry, &g_umount_mgr.entry_list, list) {
-        if (idx >= max_count) {
-            break;
+    if (idx < max_count) {
+        ret = collect_umount_manager_entries(entries, idx, max_count, &idx);
+        if (ret) {
+            return ret;
         }
-
-        memset(&info, 0, sizeof(info));
-        strncpy(info.path, entry->path, sizeof(info.path) - 1);
-        info.check_mnt = entry->check_mnt;
-        info.flags = entry->flags;
-        info.is_default = entry->is_default;
-        info.state = entry->state;
-        info.ref_count = entry->ref_count;
-
-        if (copy_to_user(&entries[idx], &info, sizeof(info))) {
-            spin_unlock_irqrestore(&g_umount_mgr.lock, flags);
-            return -EFAULT;
-        }
-
-        idx++;
     }
 
     *count = idx;
-
-    spin_unlock_irqrestore(&g_umount_mgr.lock, flags);
     return 0;
 }
 

@@ -110,7 +110,6 @@
     <string name="install_inactive_slot_warning">將在重新啟動後強制切換至另一槽位！\n注意：僅能在 OTA 更新完成後重新啟動前使用。\n確定繼續？</string>
     <string name="install_next">下一步</string>
     <string name="select_file_tip">建議選擇 %1$s 分區映像檔</string>
-    <string name="select_file_tip_vendor">(實驗性的)</string>
     <string name="select_kmi">選擇 KMI</string>
     <string name="settings_uninstall">解除安裝</string>
     <string name="settings_uninstall_temporary">臨時解除安裝</string>
@@ -125,7 +124,6 @@
     <string name="selected_lkm">已選擇的 LKM：%s</string>
     <string name="save_log">儲存日誌</string>
     <string name="log_saved">日誌已儲存</string>
-    <string name="sus_su_mode">SuS SU 模式：</string>
     <!-- Module related -->
     <string name="module_install_confirm">確定安裝模組 %1$s？</string>
     <string name="unknown_module">未知模組</string>
@@ -279,8 +277,6 @@
     <string name="advanced_settings">進階設定</string>
     <string name="appearance_settings">外觀設定</string>
     <string name="back">返回</string>
-    <string name="susfs_enabled">SuSFS 已啟用</string>
-    <string name="susfs_disabled">SuSFS 已禁用</string>
     <string name="background_set_success">背景設定成功</string>
     <string name="background_removed">已移除自訂背景</string>
     <string name="icon_switch_title">備用圖示</string>
@@ -382,39 +378,20 @@
     <!-- SuSFS Tab Titles -->
     <string name="susfs_tab_basic_settings">基本設定</string>
     <string name="susfs_tab_sus_paths">SuS 路徑</string>
-    <string name="susfs_tab_sus_mounts">SuS 掛載</string>
-    <string name="susfs_tab_try_umount">嘗試卸載</string>
     <string name="susfs_tab_path_settings">路徑設定</string>
     <string name="susfs_tab_enabled_features">啟用功能狀態</string>
     <!-- SuSFS Path Management -->
     <string name="susfs_add_sus_path">新增 SuS 路徑</string>
-    <string name="susfs_add_sus_mount">新增 SuS 掛載</string>
-    <string name="susfs_add_try_umount">新增嘗試卸載</string>
     <string name="susfs_sus_path_added_success">成功添加 SuS 路径</string>
     <string name="susfs_path_not_found_error">未找到路径</string>
     <string name="susfs_path_label">路徑</string>
-    <string name="susfs_mount_path_label">掛載路徑</string>
     <string name="susfs_path_placeholder">例如：/system/addon.d</string>
     <string name="susfs_no_paths_configured">暫無 SuS 路徑設定</string>
-    <string name="susfs_no_mounts_configured">暫無 SuS 掛載設定</string>
-    <string name="susfs_no_umounts_configured">暫無嘗試卸載設定</string>
     <!-- SuSFS Umount Mode -->
-    <string name="susfs_umount_mode_label">卸載模式</string>
-    <string name="susfs_umount_mode_normal">一般卸載 (0)</string>
-    <string name="susfs_umount_mode_detach">分離卸載 (1)</string>
-    <string name="susfs_umount_mode_normal_short">一般</string>
-    <string name="susfs_umount_mode_detach_short">分離</string>
-    <string name="susfs_umount_mode_display">模式：%1$s (%2$s)</string>
-    <string name="susfs_try_umount_added_success">嘗試 umount 路徑新增成功： %s</string>
-    <string name="susfs_try_umount_added_saved">嘗試 umount 路徑儲存成功： %s</string>
     <!-- SuSFS Run Umount -->
     <!-- SuSFS Reset Categories -->
     <string name="susfs_reset_paths_title">重設 SuS 路徑</string>
     <string name="susfs_reset_paths_message">這將清除所有 SuS 路徑設定，確定要繼續嗎？</string>
-    <string name="susfs_reset_mounts_title">重設 SuS 掛載</string>
-    <string name="susfs_reset_mounts_message">這將清除所有 SuS 掛載設定，確定要繼續嗎？</string>
-    <string name="susfs_reset_umounts_title">重設嘗試卸載</string>
-    <string name="susfs_reset_umounts_message">這將清除所有嘗試卸載設定，確定要繼續嗎？</string>
     <string name="susfs_reset_path_title">重置路徑設定</string>
     <!-- SuSFS Path Settings -->
     <string name="susfs_android_data_path_label">Android Data 路徑</string>
@@ -428,18 +405,12 @@
     <string name="susfs_feature_disabled">已停用</string>
     <!-- Feature Labels -->
     <string name="sus_path_feature_label">SuS 路徑支援</string>
-    <string name="sus_mount_feature_label">SuS 掛載支援</string>
-    <string name="try_umount_feature_label">嘗試卸載支援</string>
     <string name="spoof_uname_feature_label">偽裝 uname 支援</string>
     <string name="spoof_cmdline_feature_label">偽裝 Cmdline/Bootconfig</string>
     <string name="open_redirect_feature_label">開放重定向支援</string>
     <string name="enable_log_feature_label">日誌記錄支援</string>
-    <string name="auto_default_mount_feature_label">自動預設掛載</string>
-    <string name="auto_bind_mount_feature_label">自動綁定掛載</string>
-    <string name="auto_try_umount_bind_feature_label">自動嘗試卸載綁定掛載</string>
     <string name="hide_symbols_feature_label">隱藏 KSU SuSFS 符號</string>
     <string name="sus_kstat_feature_label">SuS 內核統計支援</string>
-    <string name="sus_su_feature_label">SuS SU 模式切換功能</string>
     <!-- 可切换状态 -->
     <string name="susfs_feature_configurable">可設定的 SuSFS 功能</string>
     <string name="susfs_enable_log_label">SuSFS 啟用日誌</string>
@@ -535,8 +506,6 @@
     <string name="cleanup_residue">清理工具殘留</string>
     <string name="cleanup_residue_description">清理各種模組以及工具的殘留檔案和目錄(可能會誤刪導致丟失以及無法啟動，謹慎使用)</string>
     <string name="susfs_edit_sus_path">編輯 SuS 路徑</string>
-    <string name="susfs_edit_sus_mount">編輯 SuS 掛載</string>
-    <string name="susfs_edit_try_umount">編輯嘗試解除安裝</string>
     <string name="edit_kstat_statically_title">編輯 Kstat 靜態配置</string>
     <string name="edit_kstat_path_title">編輯 Kstat 路徑</string>
     <string name="susfs_save">儲存</string>
@@ -593,7 +562,6 @@
     <string name="loop_paths_section">循環路徑</string>
     <string name="add_loop_path">新增循環路徑</string>
     <!-- 循环路径功能描述 -->
-    <string name="sus_loop_path_feature_label">SuS 循環路徑</string>
     <string name="sus_loop_paths_description_title">循環路徑設定</string>
     <string name="sus_loop_paths_description_text">循環路徑會在每次非 root 使用者應用程式或隔離服務啟動時重新標記為 SUS_PATH。這有助於解決新增的路徑可能因 inode 狀態重設或內核中 inode 重新建立而失效的問題</string>
     <string name="avc_log_spoofing">AVC 日誌偽裝</string>
@@ -647,7 +615,6 @@
     <string name="uid_multi_user_scan_title">多使用者應用掃描</string>
     <string name="uid_multi_user_scan_summary">開啟後將掃描所有使用者的應用，包括工作資料等</string>
     <string name="uid_scanner_setting_failed">設定失敗，請檢查許可權</string>
-    <string name="uid_scanner_setting_error">設定失敗: %s</string>
     <string name="clean_runtime_environment">清理執行環境</string>
     <string name="clean_runtime_environment_summary">清理執行時檔案並停止掃描服務</string>
     <string name="clean_runtime_environment_confirm">您確定要清理執行環境嗎？這將停止掃描服務並刪除相關檔案</string>

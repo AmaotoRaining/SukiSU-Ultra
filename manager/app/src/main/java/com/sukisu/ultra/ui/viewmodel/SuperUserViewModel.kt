@@ -18,7 +18,6 @@ import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.parcelize.Parcelize
 import java.text.Collator
 import java.util.*
 import java.util.concurrent.LinkedBlockingQueue
@@ -27,6 +26,10 @@ import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import com.sukisu.zako.IKsuInterface
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.parcelize.IgnoredOnParcel
+import kotlinx.parcelize.Parcelize
 
 enum class AppCategory(val displayNameRes: Int, val persistKey: String) {
     ALL(com.sukisu.ultra.R.string.category_all_apps, "ALL"),
@@ -58,7 +61,8 @@ class SuperUserViewModel : ViewModel() {
         private const val TAG = "SuperUserViewModel"
         private val appsLock = Any()
         var apps by mutableStateOf<List<AppInfo>>(emptyList())
-        var appGroups by mutableStateOf<List<AppGroup>>(emptyList())
+        private val _isAppListLoaded = MutableStateFlow(false)
+        val isAppListLoaded = _isAppListLoaded.asStateFlow()
 
         @JvmStatic
         fun getAppIconDrawable(context: Context, packageName: String): Drawable? {
@@ -66,6 +70,8 @@ class SuperUserViewModel : ViewModel() {
             return appList.find { it.packageName == packageName }
                 ?.packageInfo?.applicationInfo?.loadIcon(context.packageManager)
         }
+
+        var appGroups by mutableStateOf<List<AppGroup>>(emptyList())
 
         private const val PREFS_NAME = "settings"
         private const val KEY_SHOW_SYSTEM_APPS = "show_system_apps"
@@ -77,36 +83,36 @@ class SuperUserViewModel : ViewModel() {
         private const val BATCH_SIZE = 20
     }
 
+    @Immutable
     @Parcelize
     data class AppInfo(
         val label: String,
         val packageInfo: PackageInfo,
         val profile: Natives.Profile?,
     ) : Parcelable {
-        val packageName: String get() = packageInfo.packageName
-        val uid: Int get() = packageInfo.applicationInfo!!.uid
-        val allowSu: Boolean get() = profile?.allowSu == true
-        val hasCustomProfile: Boolean
-            get() = profile?.let {
-                if (it.allowSu) !it.rootUseDefault else !it.nonRootUseDefault
-            } ?: false
+        @IgnoredOnParcel
+        val packageName: String = packageInfo.packageName
+        @IgnoredOnParcel
+        val uid: Int = packageInfo.applicationInfo!!.uid
     }
 
+    @Immutable
     @Parcelize
     data class AppGroup(
         val uid: Int,
         val apps: List<AppInfo>,
         val profile: Natives.Profile?
     ) : Parcelable {
-        val mainApp: AppInfo get() = apps.first()
-        val packageNames: List<String> get() = apps.map { it.packageName }
-        val allowSu: Boolean get() = profile?.allowSu == true
-
-        val userName: String? get() = Natives.getUserName(uid)
-        val hasCustomProfile: Boolean
-            get() = profile?.let {
-                if (it.allowSu) !it.rootUseDefault else !it.nonRootUseDefault
-            } ?: false
+        @IgnoredOnParcel
+        val mainApp: AppInfo = apps.first()
+        @IgnoredOnParcel
+        val packageNames: List<String> = apps.map { it.packageName }
+        @IgnoredOnParcel
+        val allowSu: Boolean = profile?.allowSu == true
+        @IgnoredOnParcel
+        val userName: String? = Natives.getUserName(uid)
+        @IgnoredOnParcel
+        val hasCustomProfile : Boolean = profile?.let { if (it.allowSu) !it.rootUseDefault else !it.nonRootUseDefault } ?: false
     }
 
     private val appProcessingThreadPool = ThreadPoolExecutor(
@@ -171,28 +177,6 @@ class SuperUserViewModel : ViewModel() {
     fun updateCurrentSortType(newSortType: SortType) {
         currentSortType = newSortType
         prefs.edit { putString(KEY_CURRENT_SORT_TYPE, newSortType.persistKey) }
-    }
-
-    private val sortedList by derivedStateOf {
-        val comparator = compareBy<AppInfo> {
-            when {
-                it.allowSu -> 0
-                it.hasCustomProfile -> 1
-                else -> 2
-            }
-        }.then(compareBy(Collator.getInstance(Locale.getDefault()), AppInfo::label))
-        apps.sortedWith(comparator).also { isRefreshing = false }
-    }
-
-    val appList by derivedStateOf {
-        sortedList.filter {
-            it.label.contains(search, true) ||
-                    it.packageName.contains(search, true) ||
-                    HanziToPinyin.getInstance().toPinyinString(it.label).contains(search, true)
-        }.filter {
-            it.uid == 2000 || showSystemApps ||
-                    it.packageInfo.applicationInfo!!.flags.and(ApplicationInfo.FLAG_SYSTEM) == 0
-        }
     }
 
     fun toggleBatchMode() {
@@ -358,6 +342,10 @@ class SuperUserViewModel : ViewModel() {
 
             stopKsuService()
 
+            synchronized(appsLock) {
+                _isAppListLoaded.value = true
+            }
+
             appListMutex.withLock {
                 val filteredApps = result.filter { it.packageName != ksuApp.packageName }
                 apps = filteredApps
@@ -373,7 +361,7 @@ class SuperUserViewModel : ViewModel() {
             group.apps.any { app ->
                 app.label.contains(search, true) ||
                         app.packageName.contains(search, true) ||
-                        HanziToPinyin.getInstance().toPinyinString(app.label).contains(search, true)
+                        HanziToPinyin.getInstance().toPinyinString(app.label)?.contains(search, true) == true
             }
         }.filter { group ->
             group.uid == 2000 || showSystemApps ||

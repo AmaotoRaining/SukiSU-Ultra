@@ -60,6 +60,7 @@ class MoreSettingsState(
     var isHideOtherInfo by mutableStateOf(prefs.getBoolean("is_hide_other_info", false))
     var isShowKpmInfo by mutableStateOf(prefs.getBoolean("show_kpm_info", false))
     var isHideZygiskImplement by mutableStateOf(prefs.getBoolean("is_hide_zygisk_Implement", false))
+    var isHideMetaModuleImplement by mutableStateOf(prefs.getBoolean("is_hide_meta_module_Implement", false))
     var isHideSusfsStatus by mutableStateOf(prefs.getBoolean("is_hide_susfs_status", false))
     var isHideLinkCard by mutableStateOf(prefs.getBoolean("is_hide_link_card", false))
     var isHideTagRow by mutableStateOf(prefs.getBoolean("is_hide_tag_row", false))
@@ -69,9 +70,6 @@ class MoreSettingsState(
 
     // SELinux状态
     var selinuxEnabled by mutableStateOf(false)
-
-    // SuSFS 状态
-    var isSusFSEnabled by mutableStateOf(true)
 
     // 卡片配置状态
     var cardAlpha by mutableFloatStateOf(CardConfig.cardAlpha)
